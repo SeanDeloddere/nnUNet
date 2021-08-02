@@ -34,6 +34,7 @@ from torch import nn
 from torch.cuda.amp import autocast
 from nnunet.training.learning_rate.poly_lr import poly_lr
 from batchgenerators.utilities.file_and_folder_operations import *
+import pprint
 
 
 class nnUNetTrainerV2(nnUNetTrainer):
@@ -45,7 +46,7 @@ class nnUNetTrainerV2(nnUNetTrainer):
                  unpack_data=True, deterministic=True, fp16=False):
         super().__init__(plans_file, fold, output_folder, dataset_directory, batch_dice, stage, unpack_data,
                          deterministic, fp16)
-        self.max_num_epochs = 1000
+        self.max_num_epochs = 50
         self.initial_lr = 1e-2
         self.deep_supervision_scales = None
         self.ds_loss_weights = None
@@ -124,6 +125,9 @@ class nnUNetTrainerV2(nnUNetTrainer):
             assert isinstance(self.network, (SegmentationNetwork, nn.DataParallel))
         else:
             self.print_to_log_file('self.was_initialized is True, not running self.initialize again')
+        print("="*20)
+        pprint.pprint(self.data_aug_params)
+        print("="*20)
         self.was_initialized = True
 
     def initialize_network(self):

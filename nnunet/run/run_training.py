@@ -89,9 +89,11 @@ def main():
                         help='path to nnU-Net checkpoint file to be used as pretrained model (use .model '
                              'file, for example model_final_checkpoint.model). Will only be used when actually training. '
                              'Optional. Beta. Use with caution.')
+    parser.add_argument("-w", required=False, default=None, help="Load pre-trained Models Genesis") #MG
 
     args = parser.parse_args()
 
+    weights = args.w #MG
     task = args.task
     fold = args.fold
     network = args.network
@@ -161,6 +163,9 @@ def main():
         trainer.save_latest_only = True  # if false it will not store/overwrite _latest but separate files each
 
     trainer.initialize(not validation_only)
+
+    if weights != None: #MG
+        trainer.load_pretrained_weights(weights) #MG
 
     if find_lr:
         trainer.find_lr()

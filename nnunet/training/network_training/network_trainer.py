@@ -88,14 +88,14 @@ class NetworkTrainer(object):
         self.dataset_tr = self.dataset_val = None  # do not need to be used, they just appear if you are using the suggested load_dataset_and_do_split
 
         ################# THESE DO NOT NECESSARILY NEED TO BE MODIFIED #####################
-        self.patience = 50
+        self.patience = 10 #WAS 50
         self.val_eval_criterion_alpha = 0.9  # alpha * old + (1-alpha) * new
         # if this is too low then the moving average will be too noisy and the training may terminate early. If it is
         # too high the training will take forever
         self.train_loss_MA_alpha = 0.93  # alpha * old + (1-alpha) * new
         self.train_loss_MA_eps = 5e-4  # new MA must be at least this much better (smaller)
-        self.max_num_epochs = 1000
-        self.num_batches_per_epoch = 250
+        self.max_num_epochs = 100
+        self.num_batches_per_epoch = 125 #CHANGED FROM 250
         self.num_val_batches_per_epoch = 50
         self.also_val_in_tr_mode = False
         self.lr_threshold = 1e-6  # the network will not terminate training if the lr is still above this threshold
@@ -433,6 +433,17 @@ class NetworkTrainer(object):
         if not self.was_initialized:
             self.initialize(True)
 
+        # # =================== FREEZE LAYERS (manually added) ==========================
+        #
+        # trained_layers = ['seg_outputs.0.weight','seg_outputs.1.weight','seg_outputs.2.weight','seg_outputs.3.weight','seg_outputs.4.weight']
+        #
+        # for name, param in self.network.named_parameters():
+        #     if name not in trained_layers:
+        #         param.requires_grad = False
+        #     print(name, param.requires_grad)
+        #
+        # # =============================================================================
+
         while self.epoch < self.max_num_epochs:
             self.print_to_log_file("\nepoch: ", self.epoch)
             epoch_start_time = time()
@@ -440,6 +451,7 @@ class NetworkTrainer(object):
 
             # train one epoch
             self.network.train()
+
 
             if self.use_progress_bar:
                 with trange(self.num_batches_per_epoch) as tbar:
@@ -734,3 +746,39 @@ class NetworkTrainer(object):
         plt.savefig(join(self.output_folder, "lr_finder.png"))
         plt.close()
         return log_lrs, losses
+
+    def load_pretrained_weights(self, fname):
+        saved_model = torch.load(fname)
+        pretrained_dict = saved_model['state_dict']
+        print(self.network)
+        model_dict = self.network.state_dict()
+        fine_tune = True
+        for key, _ in model_dict.items():
+            if ('conv_blocks' in key):
+                if (key in pretrained_dict) and (model_dict[key].shape == pretrained_dict[key].shape):
+                    continue
+                else:
+                    print("key: "+key)
+                    print("model shape")
+                    print(model_dict[key].shape)
+                    print(model_dict[key][0,0,:,0,0])
+                    print("pretrained shape")
+                    print(pretrained_dict[key].shape)
+                    print(pretrained_dict[key][0, 0, :, 0, 0])
+                    fine_tune = False
+                    #break
+                    # filter unnecessary keys
+        if fine_tune:
+            pretrained_dict = {k: v for k, v in pretrained_dict.items() if
+                               (k in model_dict) and (model_dict[k].shape == pretrained_dict[k].shape)}
+            # 2. overwrite entries in the existing state dict
+            model_dict.update(pretrained_dict)
+            # print(model_dict)
+            print("############################################### Loading pre-trained Models Genesis from ", fname)
+            print("Below is the list of overlapping blocks in pre-trained Models Genesis and nnUNet architecture:")
+            for key, _ in pretrained_dict.items():
+                print(key)
+            print("############################################### Done")
+            self.network.load_state_dict(model_dict)
+        else:
+            print('############################################### Training from scratch')

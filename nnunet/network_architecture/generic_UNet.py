@@ -166,7 +166,7 @@ class Upsample(nn.Module):
 
 class Generic_UNet(SegmentationNetwork):
     DEFAULT_BATCH_SIZE_3D = 2
-    DEFAULT_PATCH_SIZE_3D = (64, 192, 160)
+    DEFAULT_PATCH_SIZE_3D = (32, 192, 192) #was (64, 192, 160)
     SPACING_FACTOR_BETWEEN_STAGES = 2
     BASE_NUM_FEATURES_3D = 30
     MAX_NUMPOOL_3D = 999
@@ -388,15 +388,20 @@ class Generic_UNet(SegmentationNetwork):
         skips = []
         seg_outputs = []
         for d in range(len(self.conv_blocks_context) - 1):
+            #print(x.shape)
             x = self.conv_blocks_context[d](x)
             skips.append(x)
             if not self.convolutional_pooling:
                 x = self.td[d](x)
 
+        #print(x.shape)
         x = self.conv_blocks_context[-1](x)
 
         for u in range(len(self.tu)):
+            #print(x.shape)
             x = self.tu[u](x)
+            #print("last x: " + str(x.shape))
+            #print("skips: " + str(skips[-(u + 1)].shape))
             x = torch.cat((x, skips[-(u + 1)]), dim=1)
             x = self.conv_blocks_localization[u](x)
             seg_outputs.append(self.final_nonlin(self.seg_outputs[u](x)))

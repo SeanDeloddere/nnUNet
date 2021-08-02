@@ -108,9 +108,11 @@ def verify_dataset_integrity(folder):
     expected_train_identifiers = [i['image'].split("/")[-1][:-7] for i in training_cases]
     expected_test_identifiers = [i.split("/")[-1][:-7] for i in test_cases]
 
+
     ## check training set
     nii_files_in_imagesTr = subfiles((join(folder, "imagesTr")), suffix=".nii.gz", join=False)
     nii_files_in_labelsTr = subfiles((join(folder, "labelsTr")), suffix=".nii.gz", join=False)
+
 
     label_files = []
     geometries_OK = True
