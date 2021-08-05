@@ -25,6 +25,8 @@ import SimpleITK as sitk
 from nnunet.evaluation.metrics import ConfusionMatrix, ALL_METRICS
 from batchgenerators.utilities.file_and_folder_operations import save_json, subfiles, join
 from collections import OrderedDict
+import wandb
+import pickle
 
 
 class Evaluator:
@@ -397,6 +399,32 @@ def aggregate_scores(test_ref_pairs,
         save_json(json_dict, json_output_file)
 
 
+    prefix = '/home/sean/Documents/media/netsean/nnUNet_trained_models/nnUNet/3d_fullres/'
+    suffix = '/nnUNetTrainerV2__nnUNetPlansv2.1/wandb_id.pickle'
+    middle = json_output_file[:-13].split('/')[-1]
+    if (middle.startswith('Task')):
+        wandb_path = prefix + middle + suffix
+        print('=' * 20)
+        print('getting wandb run info from: '+wandb_path)
+        with open(wandb_path, 'rb') as handle:
+            wandb_pickle = pickle.load(handle)
+
+
+        wandb.init(
+            project=wandb_pickle['project'],
+            group=wandb_pickle['group'],
+            id=wandb_pickle['id']
+        )
+
+        dice_scores = {}
+        for classes in all_scores['mean']:
+            key='dice_score_'+classes
+            dice_scores[key] = all_scores['mean'][classes]['Dice']
+
+        print('dice scores: '+str(dice_scores))
+        print('=' * 20)
+        wandb.log(dice_scores)
+
     return all_scores
 
 
@@ -458,6 +486,7 @@ def evaluate_folder(folder_with_gts: str, folder_with_predictions: str, labels: 
     test_ref_pairs = [(join(folder_with_predictions, i), join(folder_with_gts, i)) for i in files_pred]
     res = aggregate_scores(test_ref_pairs, json_output_file=join(folder_with_predictions, "summary.json"),
                            num_threads=8, labels=labels, **metric_kwargs)
+
     return res
 
 

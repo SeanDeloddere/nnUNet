@@ -38,6 +38,10 @@ from datetime import datetime
 from tqdm import trange
 from nnunet.utilities.to_torch import maybe_to_torch, to_cuda
 
+import wandb
+import pickle
+import shutil
+
 
 class NetworkTrainer(object):
     def __init__(self, deterministic=True, fp16=False):
@@ -94,7 +98,7 @@ class NetworkTrainer(object):
         # too high the training will take forever
         self.train_loss_MA_alpha = 0.93  # alpha * old + (1-alpha) * new
         self.train_loss_MA_eps = 5e-4  # new MA must be at least this much better (smaller)
-        self.max_num_epochs = 100
+        self.max_num_epochs = 100 #CHANGED FROM 1000
         self.num_batches_per_epoch = 125 #CHANGED FROM 250
         self.num_val_batches_per_epoch = 50
         self.also_val_in_tr_mode = False
@@ -125,6 +129,8 @@ class NetworkTrainer(object):
         self.save_intermediate_checkpoints = True  # whether or not to save checkpoint_latest
         self.save_best_checkpoint = True  # whether or not to save the best checkpoint according to self.best_val_eval_criterion_MA
         self.save_final_checkpoint = True  # whether or not to save the final checkpoint
+
+        self.pretrained_model = None
 
     @abstractmethod
     def initialize(self, training=True):
@@ -434,7 +440,21 @@ class NetworkTrainer(object):
         if not self.was_initialized:
             self.initialize(True)
 
-        # # =================== FREEZE LAYERS (manually added) ==========================
+        wandb.init(
+            project="ModelsGenesis",
+            group="Stomach, Pancreas",
+            config={
+                "ss_model": self.pretrained_model,
+                "training_set_size": len(self.dataset),
+                "epochs": self.max_num_epochs,
+                "batches_per_epoch": self.num_batches_per_epoch,
+                "batch_size": self.batch_size
+            }
+
+        )
+
+
+        # # ============================= FREEZE LAYERS =================================
         #
         # trained_layers = ['seg_outputs.0.weight','seg_outputs.1.weight','seg_outputs.2.weight','seg_outputs.3.weight','seg_outputs.4.weight']
         #
@@ -512,6 +532,15 @@ class NetworkTrainer(object):
             os.remove(join(self.output_folder, "model_latest.model"))
         if isfile(join(self.output_folder, "model_latest.model.pkl")):
             os.remove(join(self.output_folder, "model_latest.model.pkl"))
+
+        src_m = join(self.output_folder,'model_best.model')
+        dst = join('/home/sean/Documents/media/netsean/nnUNet_trained_models/nnUNet/backups',wandb.run.name+'.model')
+        shutil.copyfile(src_m, dst)
+
+        wandb_id = {'project': wandb.run.project, 'group': wandb.run.group, 'id': wandb.run.id}
+        with open(join(self.output_folder_base,'wandb_id.pickle'),'wb') as handle:
+            pickle.dump(wandb_id,handle, protocol=pickle.HIGHEST_PROTOCOL)
+        wandb.finish()
 
     def maybe_update_lr(self):
         # maybe update learning rate
@@ -625,6 +654,12 @@ class NetworkTrainer(object):
         self.maybe_save_checkpoint()
 
         self.update_eval_criterion_MA()
+
+        wandb.log({
+            "train_loss": self.all_tr_losses[-1],
+            "validation_loss": self.all_val_losses[-1],
+            "mean_global_foreground_dice": self.all_val_eval_metrics[-1]
+        })
 
         continue_training = self.manage_patience()
         return continue_training
@@ -749,6 +784,9 @@ class NetworkTrainer(object):
         return log_lrs, losses
 
     def load_pretrained_weights(self, fname):
+
+        self.pretrained_model = fname
+
         saved_model = torch.load(fname)
         pretrained_dict = saved_model['state_dict']
         print(self.network)
