@@ -43,9 +43,9 @@ class nnUNetTrainerV2(nnUNetTrainer):
     """
 
     def __init__(self, plans_file, fold, output_folder=None, dataset_directory=None, batch_dice=True, stage=None,
-                 unpack_data=True, deterministic=True, fp16=False):
+                 unpack_data=True, deterministic=True, fp16=False, log_name='Experiment'):
         super().__init__(plans_file, fold, output_folder, dataset_directory, batch_dice, stage, unpack_data,
-                         deterministic, fp16)
+                         deterministic, fp16, log_name)
         self.max_num_epochs = 100 #CHANGED FROM 1000
         self.initial_lr = 1e-2
         self.deep_supervision_scales = None
@@ -126,7 +126,7 @@ class nnUNetTrainerV2(nnUNetTrainer):
         else:
             self.print_to_log_file('self.was_initialized is True, not running self.initialize again')
         print("="*20)
-        pprint.pprint(self.data_aug_params)
+        # pprint.pprint(self.data_aug_params)
         print("="*20)
         self.was_initialized = True
 

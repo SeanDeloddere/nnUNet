@@ -44,7 +44,7 @@ import shutil
 
 
 class NetworkTrainer(object):
-    def __init__(self, deterministic=True, fp16=False):
+    def __init__(self, deterministic=True, fp16=False, log_name='Experiment'):
         """
         A generic class that can train almost any neural network (RNNs excluded). It provides basic functionality such
         as the training loop, tracking of training and validation losses (and the target metric if you implement it)
@@ -131,6 +131,7 @@ class NetworkTrainer(object):
         self.save_final_checkpoint = True  # whether or not to save the final checkpoint
 
         self.pretrained_model = None
+        self.log_name = log_name
 
     @abstractmethod
     def initialize(self, training=True):
@@ -440,9 +441,15 @@ class NetworkTrainer(object):
         if not self.was_initialized:
             self.initialize(True)
 
+
+        if not self.pretrained_model == None:
+            self.log_name = self.log_name + '_SS'
+
         wandb.init(
             project="ModelsGenesis",
             group="Stomach, Pancreas",
+            name= self.log_name,
+            resume='allow',
             config={
                 "ss_model": self.pretrained_model,
                 "training_set_size": len(self.dataset),
@@ -452,6 +459,7 @@ class NetworkTrainer(object):
             }
 
         )
+
 
 
         # # ============================= FREEZE LAYERS =================================

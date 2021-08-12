@@ -90,9 +90,11 @@ def main():
                              'file, for example model_final_checkpoint.model). Will only be used when actually training. '
                              'Optional. Beta. Use with caution.')
     parser.add_argument("-w", required=False, default=None, help="Load pre-trained Models Genesis") #MG
+    parser.add_argument('-n', default='Experiment', help= 'Name of the experiment to keep track of it in weights and biases')
 
     args = parser.parse_args()
 
+    log_name = args.n
     weights = args.w #MG
     task = args.task
     fold = args.fold
@@ -153,7 +155,7 @@ def main():
     trainer = trainer_class(plans_file, fold, output_folder=output_folder_name, dataset_directory=dataset_directory,
                             batch_dice=batch_dice, stage=stage, unpack_data=decompress_data,
                             deterministic=deterministic,
-                            fp16=run_mixed_precision)
+                            fp16=run_mixed_precision, log_name=log_name)
     if args.disable_saving:
         trainer.save_final_checkpoint = False # whether or not to save the final checkpoint
         trainer.save_best_checkpoint = False  # whether or not to save the best checkpoint according to
@@ -191,9 +193,9 @@ def main():
         trainer.network.eval()
 
         # predict validation
-        trainer.validate(save_softmax=args.npz, validation_folder_name=val_folder,
-                         run_postprocessing_on_folds=not disable_postprocessing_on_folds,
-                         overwrite=args.val_disable_overwrite)
+        # trainer.validate(save_softmax=args.npz, validation_folder_name=val_folder,
+        #                  run_postprocessing_on_folds=not disable_postprocessing_on_folds,
+        #                  overwrite=args.val_disable_overwrite)
 
         if network == '3d_lowres' and not args.disable_next_stage_pred:
             print("predicting segmentations for the next stage of the cascade")

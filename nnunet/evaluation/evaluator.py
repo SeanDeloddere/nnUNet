@@ -413,17 +413,33 @@ def aggregate_scores(test_ref_pairs,
         wandb.init(
             project=wandb_pickle['project'],
             group=wandb_pickle['group'],
-            id=wandb_pickle['id']
+            id=wandb_pickle['id'],
+            resume='allow'
         )
+
+
+        json_prefix = '/home/sean/Documents/media/netsean/nnUNet_raw/nnUNet_raw_data/'
+        json_suffix = '/dataset.json'
+        json_middle = json_output_file[:-13].split('/')[-1]
+        if json_middle.endswith('_SS'):
+            json_middle = json_middle[:-3]
+        json_path = json_prefix + json_middle + json_suffix
+
+        with open(json_path) as f:
+            data = json.load(f)
+
+
 
         dice_scores = {}
         for classes in all_scores['mean']:
-            key='dice_score_'+classes
-            dice_scores[key] = all_scores['mean'][classes]['Dice']
+            key= data['labels'][classes]
+            dice_scores[key] = [all_scores['mean'][classes]['Dice']]
 
         print('dice scores: '+str(dice_scores))
         print('=' * 20)
         wandb.log(dice_scores)
+        dice_scores_df = pd.DataFrame.from_dict(dice_scores)
+        wandb.log({'dice_scores_df': dice_scores_df})
 
     return all_scores
 
